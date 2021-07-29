@@ -1,9 +1,7 @@
-APScheduler==3.6.3
-asgiref==3.4.1
-cachetools==4.2.2
-certifi==2021.5.30
 Django==3.2.5
+django-phonenumber-field==5.2.0
 djangorestframework==3.12.4
+phonenumbers==8.12.28
 python-telegram-bot==13.7
 pytz==2021.1
 six==1.16.0
