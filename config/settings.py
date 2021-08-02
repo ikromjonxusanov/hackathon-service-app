@@ -39,8 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'serviceApp',
-    'phonenumber_field'
-    
+    'phonenumber_field',
 ]
 
 MIDDLEWARE = [
@@ -127,3 +126,8 @@ STATIC_URL = '/static/'
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+TOKEN = '1947494377:AAG6QzemUiVyE-5qF0bUCIpqg8K59Tkrj5o'
+
+PROXY_URL = 'https://api.telegram.org/bot'

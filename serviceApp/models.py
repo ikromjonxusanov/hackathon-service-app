@@ -3,7 +3,7 @@ from phonenumber_field.modelfields import PhoneNumberField
 # Create your models here.
 
 class BotUserModel(Model):
-    telegram_id = CharField(max_length=25)
+    telegram_id = CharField(max_length=25, unique=True)
     first_name = CharField(max_length=60)
     last_name = CharField(max_length=60)
     phone_number = PhoneNumberField()
