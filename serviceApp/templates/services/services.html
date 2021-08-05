@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}
+    Services
+{% endblock %}
+{% block content %}
+    <div class="container">
+        <div class="jumbotron">
+            <h1 class="text-center">This is Services page</h1>
+        </div>
+    <div class="row">
+        {% for object in queryset %}
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="card w-100">
+              <img src="{{ object.image.url }}" class="card-img-top" alt="...">
+              <div class="card-body">
+                <h5 class="card-title">{{ object.name }}</h5>
+                <pre class="card-text">{{ object.description }}</pre>
+                  <b>price: </b> {{ object.price }} so'm
+                <div class="row">
+                    <div class="col-lg-6">
+                        <a href="#" class="btn btn-outline-primary w-100 mt-3">
+                            Update
+                        </a>
+                    </div>
+                      <div class="col-lg-6">
+                        <a href="#" class="btn btn-outline-danger w-100 mt-3">
+                            Delete
+                        </a>
+                    </div>
+                </div>
+              </div>
+            </div>
+        </div>
+        {% endfor %}
+
+
+    </div>
+    </div>
+{% endblock %}

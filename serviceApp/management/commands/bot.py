@@ -1,53 +1,153 @@
-from django.core.management.base import BaseCommand, CommandError
-import logging
+from serviceApp.management.commands.utils import *
+from django.core.management.base import BaseCommand
 from django.conf import settings
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, Update, Bot, ReplyKeyboardMarkup
-from telegram.ext import Updater, Filters, ConversationHandler, CallbackContext, CommandHandler, MessageHandler ,CallbackQueryHandler, CallbackContext
+from telegram import InlineKeyboardButton,  InlineKeyboardMarkup, KeyboardButton, Update, Bot, ReplyKeyboardMarkup
+from telegram.ext import Updater, Filters,  CommandHandler, MessageHandler ,CallbackQueryHandler, CallbackContext
 from telegram.utils.request import Request
+from serviceApp.models import *
 
-from serviceApp.models import BotUserModel, ServiceModel, OrderModel
 
-
-def log_errors(f):
-
-    def inner(*args, **kwargs):
-        try:
-            return f(*args, **kwargs)
-        except Exception as e:
-            error_message = f'Error: {e}'
-            print(error_message)
-            raise e
-    return inner
-
-@log_errors
-def do_echo(update: Update, context: CallbackContext):
-    text = update.message.text
-
-    reply_text = text
-    update.message.reply_text(
-        text=reply_text,
-    )
-
+keyboard = [
+    [
+        InlineKeyboardButton("🗂 Xizmat toifalari", callback_data='categories'),
+        InlineKeyboardButton("📦 Mening buyurmalarim", callback_data='orders'),
+    ],
+    [
+        InlineKeyboardButton("🛒 Savat", callback_data='Basket'),
+        InlineKeyboardButton("✉️ Izoh qoldirish", callback_data='comments')
+    ],
+]
+echoIn = None
+homeMsg = "<b>Akfa Service Bot</b>"
 def registerContact(update, context):
+    global keyboard
     u = update.message
-    print(u.from_user.id, u.from_user.first_name,u.from_user.last_name,u.contact.phone_number)
-    if len(u.contact.phone_number) == 13:
-        u.reply_text(f'Enter your first name')
-        
+    user = get_botuser_object_or_None(u.from_user.id)
+    if not user:
+        botUser = BotUserModel(telegram_id=u.from_user.id, first_name=u.from_user.first_name, last_name=u.from_user.last_name, phone_number=u.contact.phone_number)
+        botUser.save()
 
+    update.message.reply_text(f'Assalamu alaykum', reply_markup=InlineKeyboardMarkup(keyboard))
 
 def start(update: Update, context: CallbackContext) -> None:
-    """Sends a message with three inline buttons attached."""
-    
-    update.message.reply_text(f'Welcome, Please register!')
-    reply_markup = ReplyKeyboardMarkup([[ KeyboardButton('Share contact', request_contact=True) ]], resize_keyboard = True)
-    update.message.reply_text('Enter your phone number',reply_markup=reply_markup)
-    return 1
+    global keyboard, homeMsg
+    user_id = update.message.from_user.id
+    try:
+        bUser = BotUserModel.objects.get(telegram_id=user_id)
+    except:
+        bUser = None
+    if not bUser:
+        reply_markup = ReplyKeyboardMarkup([[KeyboardButton('📲 Telefon nomerni yuborish', request_contact=True)]], resize_keyboard = True)
+        update.message.reply_html('<b>Telefon nomeringizni yuboring<b>',reply_markup=reply_markup)
+    else:
 
-def Name(update: Update, context: CallbackContext) -> None:
-    """Sends a message with three inline buttons attached."""
-    
-    update.message.reply_text(f'Enter your first name')
+        update.message.reply_html(f'<b>Assalamu Alaykum {homeMsg} xush kelibsiz</b>', reply_markup=InlineKeyboardMarkup(keyboard))
+
+def feedback(update: Update, context: CallbackContext) -> None:
+    global echoIn, keyboard
+    if echoIn == "feedback":
+        user_id = update.message.from_user.id
+        user = BotUserModel.objects.get(telegram_id=user_id)
+        comment = CommentModel(user=user, text=update.message.text)
+        comment.save()
+        update.message.delete()
+        update.message.reply_html("<b>Izohingiz uchun rahmat !!!</b>", reply_markup=InlineKeyboardMarkup(keyboard))
+        echoIn = None
+
+def service(update: Update, context: CallbackContext) -> None:
+    query = update.callback_query
+    global keyboard, echoIn, homeMsg
+    if query.data.split('/')[0] == 'basket':
+        if query.data.split('/')[1] == 'add':
+            id = int(query.data.split('/')[2])
+            basketAddService(query.from_user.id, id)
+            object = ServiceModel.objects.get(id=id)
+            query.answer(text=f'{object} savatga qo\'shildi ✅', show_alert=True)
+    else:
+        query.answer()
+        query.delete_message()
+    if query.data == "home":
+        query.message.reply_html(text=homeMsg, reply_markup=InlineKeyboardMarkup(keyboard))
+    elif query.data == "categories":
+        keyboardCategories = categoriesR()
+        query.message.reply_text(text="🗂 Xizmat toifasini tanlang", reply_markup=InlineKeyboardMarkup(keyboardCategories))
+    elif query.data.split('/')[0] == "category":
+        id = int(query.data.split('/')[1])
+        keyboardServices = servicesR(id)
+        query.message.reply_text(text="🗂 Xizmat tanlang", reply_markup=InlineKeyboardMarkup(keyboardServices))
+    elif query.data.split('/')[0] == "service":
+        id = int(query.data.split('/')[2])
+        c_id = int(query.data.split('/')[1].split('-')[1])
+        object = ServiceModel.objects.get(id=id)
+        image = open(str(settings.MEDIA_ROOT)+"/"+str(object.image), 'rb')
+        keyboardService = serviceR(c_id=c_id, s_id=id)
+        query.message.reply_photo(photo=image, caption=f"<b>{object}</b>\n{object.description}\n💵{object.price} so'm", parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboardService))
+    elif query.data == 'Basket':
+        keyboardBasket = basketKeyboard(query.from_user.id)
+        msg = None
+        if len(keyboardBasket) > 1:
+            msg = "<b>🛒 Savat</b>"
+        else:
+            msg = "<b>🛒 Savat</b> <i>(Hozircha <b>savat</b>da hech narsa yo'q</i>"
+
+        query.message.reply_html(msg, reply_markup=InlineKeyboardMarkup(keyboardBasket))
+    elif query.data == 'ordering':
+        user_id = query.from_user.id
+        basketServices = basketShowServices(user_id)
+        user = BotUserModel.objects.get(id=1)
+
+        order = OrderModel(user=user)
+        if basketServices:
+            order.save()
+            for pk in basketServices:
+                s = ServiceModel.objects.get(id=pk)
+                order.service.add(s)
+            basketClearService(user_id)
+        query.message.reply_html(homeMsg, reply_markup=InlineKeyboardMarkup(keyboard))
+    elif query.data == "orders":
+        user_id = query.from_user.id
+        user = BotUserModel.objects.get(telegram_id=user_id)
+        orders = user.ordermodel_set.order_by('-id')
+        for object in orders:
+            msg = f"<b>📦 Order -{object.id}</b>"
+            i = 0
+            for itemObject in object.service.all():
+                i+=1
+                msg += f"\n<b>{i}</b> - {itemObject}"
+            query.message.reply_html(msg)
+        key = [
+            [
+                InlineKeyboardButton('Orqaga', callback_data='home')
+            ]
+        ]
+        query.message.reply_html("<b>Orqaga</b>", reply_markup=InlineKeyboardMarkup(key))
+    elif query.data == "comments":
+        echoIn = "feedback"
+        query.message.reply_html(f"✉️ {homeMsg}ga izohingizni qoldiring!!!")
+    elif query.data.split('/')[1] == 'service':
+        id = int(query.data.split('/')[0])
+        object = ServiceModel.objects.get(id=id)
+        image = open(str(settings.MEDIA_ROOT) + "/" + str(object.image), 'rb')
+        keyboardBasketService = [
+            [
+                InlineKeyboardButton('❌ Bekor qilish', callback_data=f'remove/{id}'),
+                InlineKeyboardButton("⬅️ Orqaga", callback_data="Basket")
+            ]
+        ]
+        query.message.reply_photo(photo=image, caption=f"<b>{object}</b>\n{object.description}\n💵{object.price} so'm",
+                                  parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboardBasketService))
+    elif query.data.split('/')[0] == 'remove':
+        id = int(query.data.split('/')[1])
+        user_id = query.from_user.id
+        basketRemoveService(u_id=user_id, s_id=id)
+        keyboardBasket = basketKeyboard(user_id)
+        msg = None
+        if len(keyboardBasket) > 1:
+            msg = "<b>🛒 Savat</b>"
+        else:
+            msg = "<b>🛒 Savat</b> <i>(Hozircha <b>savat</b>da hech narsa yo'q</i>"
+
+        query.message.reply_html(msg, reply_markup=InlineKeyboardMarkup(keyboardBasket))
 
 class Command(BaseCommand):
     help = "Telegram bot"
@@ -68,22 +168,10 @@ class Command(BaseCommand):
             bot=bot,
             use_context= True,
         )
-
-        conv_handler = ConversationHandler(
-            entry_points = [CommandHandler('start', start)],
-            states = {
-                1: {
-                    MessageHandler(Filters.contact, registerContact)
-                },
-                2: {
-                    MessageHandler(Filters.text, Name)
-                }
-            },
-            fallbacks =[MessageHandler(Filters.text, start)]
-
-        )
-
-        updater.dispatcher.add_handler(conv_handler)
+        updater.dispatcher.add_handler(CommandHandler('start', start))
+        updater.dispatcher.add_handler(CallbackQueryHandler(service))
+        updater.dispatcher.add_handler(MessageHandler(Filters.contact, registerContact))
+        updater.dispatcher.add_handler(MessageHandler(Filters.text, feedback))
 
         updater.start_polling()
         updater.idle()
@@ -135,7 +223,7 @@ Basic example for a bot that uses inline keyboards. For an in-depth explanation,
 #         for service in services:
 #             keyboardService.append([InlineKeyboardButton(
 #                 f"{service['name']}",  callback_data=f"service/{service['id']}")])
-                
+
 #         query.edit_message_text(text=f"Xizmatlar bo'limi", reply_markup=InlineKeyboardMarkup(keyboardService))
 #     if query.data.split('/')[0] == 'service':
 #         id = int(query.data.split('/')[1])
@@ -149,7 +237,7 @@ Basic example for a bot that uses inline keyboards. For an in-depth explanation,
 #         query.edit_message_text(text=f"{service['name']}\n{service['description']}\nprice: {service['price']}",
 #             reply_markup=InlineKeyboardMarkup(keyboardServiceDetail)
 #         )
-    
+
 
 # def help_command(update: Update, context: CallbackContext) -> None:
 #     """Displays info on how to use the bot."""

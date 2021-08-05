@@ -37,7 +37,6 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'rest_framework',
     'serviceApp',
     'phonenumber_field',
 ]
@@ -122,12 +121,14 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 # Default primary key field type
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
-TOKEN = '1947494377:AAG6QzemUiVyE-5qF0bUCIpqg8K59Tkrj5o'
+TOKEN = '1943758196:AAG6f8cakql-tp_hWahjKNMZZKPIbGANj6M'
 
 PROXY_URL = 'https://api.telegram.org/bot'
