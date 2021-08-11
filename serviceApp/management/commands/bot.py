@@ -19,40 +19,48 @@ keyboard = [
 ]
 echoIn = None
 homeMsg = "<b>Akfa Service Bot</b>"
-def registerContact(update, context):
-    global keyboard
-    u = update.message
-    user = get_botuser_object_or_None(u.from_user.id)
-    if not user:
-        botUser = BotUserModel(telegram_id=u.from_user.id, first_name=u.from_user.first_name, last_name=u.from_user.last_name, phone_number=u.contact.phone_number)
-        botUser.save()
-
-    update.message.reply_text(f'Assalamu alaykum', reply_markup=InlineKeyboardMarkup(keyboard))
+userFullName = {"users":[]}
 
 def start(update: Update, context: CallbackContext) -> None:
-    global keyboard, homeMsg
+    global keyboard, homeMsg, echoIn
     user_id = update.message.from_user.id
-    try:
-        bUser = BotUserModel.objects.get(telegram_id=user_id)
-    except:
-        bUser = None
-    if not bUser:
-        reply_markup = ReplyKeyboardMarkup([[KeyboardButton('📲 Telefon nomerni yuborish', request_contact=True)]], resize_keyboard = True)
-        update.message.reply_html('<b>Telefon nomeringizni yuboring<b>',reply_markup=reply_markup)
-    else:
 
+    bUser = get_botuser_object_or_None(user_id)
+    print(bUser)
+    if bUser != None:
         update.message.reply_html(f'<b>Assalamu Alaykum {homeMsg} xush kelibsiz</b>', reply_markup=InlineKeyboardMarkup(keyboard))
+    else:#1176483954
+        echoIn = "first_name"
+        update.message.reply_text('Ismingizni kiriting')
 
-def feedback(update: Update, context: CallbackContext) -> None:
-    global echoIn, keyboard
+
+
+def echo(update: Update, context: CallbackContext) -> None:
+    global echoIn, keyboard, userFullName
+    msg = update.message.text
+    user_id = update.message.from_user.id
+
     if echoIn == "feedback":
-        user_id = update.message.from_user.id
         user = BotUserModel.objects.get(telegram_id=user_id)
-        comment = CommentModel(user=user, text=update.message.text)
+        comment = CommentModel(user=user, text=msg)
         comment.save()
-        update.message.delete()
         update.message.reply_html("<b>Izohingiz uchun rahmat !!!</b>", reply_markup=InlineKeyboardMarkup(keyboard))
         echoIn = None
+    elif echoIn == "first_name":
+        userFullName['users'].append([user_id, {'first_name':msg}])
+        echoIn = "last_name"
+        update.message.reply_text("Familiyangizni kiriting")
+    elif echoIn == "last_name":
+        USER = False
+        for user in userFullName['users']:
+            if user[0] == user_id:
+                USER = user
+        if USER:
+            USER[1]['last_name'] = msg
+            reply_markup = ReplyKeyboardMarkup([[KeyboardButton('Share contact', request_contact=True)]],
+                                               resize_keyboard=True)
+            echoIn = None
+            update.message.reply_text('Telefon nomeringizni yuboring', reply_markup=reply_markup)
 
 def service(update: Update, context: CallbackContext) -> None:
     query = update.callback_query
@@ -149,6 +157,27 @@ def service(update: Update, context: CallbackContext) -> None:
 
         query.message.reply_html(msg, reply_markup=InlineKeyboardMarkup(keyboardBasket))
 
+def registerContact(update, context):
+    global keyboard, userFullName
+    u = update.message
+    user_id = u.from_user.id
+    user = get_botuser_object_or_None(u.from_user.id)
+    if not user:
+        USER = False
+        for user in userFullName['users']:
+            if user[0] == user_id:
+                USER = user
+        if USER:
+            botUser = BotUserModel(
+                telegram_id=u.from_user.id,
+                first_name=USER[1]['first_name'],
+                last_name=USER[1]['last_name'],
+                phone_number=u.contact.phone_number
+            )
+            botUser.save()
+
+    update.message.reply_text(f'Assalamu alaykum', reply_markup=InlineKeyboardMarkup(keyboard))
+
 class Command(BaseCommand):
     help = "Telegram bot"
 
@@ -171,7 +200,7 @@ class Command(BaseCommand):
         updater.dispatcher.add_handler(CommandHandler('start', start))
         updater.dispatcher.add_handler(CallbackQueryHandler(service))
         updater.dispatcher.add_handler(MessageHandler(Filters.contact, registerContact))
-        updater.dispatcher.add_handler(MessageHandler(Filters.text, feedback))
+        updater.dispatcher.add_handler(MessageHandler(Filters.text, echo))
 
         updater.start_polling()
         updater.idle()

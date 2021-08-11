@@ -3,37 +3,78 @@
     Services
 {% endblock %}
 {% block content %}
+    <style>
+        .list-group .active { background-color: silver !important; border: None; color: black !important }
+        a.link, a.link:hover {
+            text-decoration: none;
+        }
+    </style>
     <div class="container">
-        <div class="jumbotron">
-            <h1 class="text-center">This is Services page</h1>
-        </div>
-    <div class="row">
-        {% for object in queryset %}
-        <div class="col-lg-3 col-md-4 col-sm-6">
-            <div class="card w-100">
-              <img src="{{ object.image.url }}" class="card-img-top" alt="...">
-              <div class="card-body">
-                <h5 class="card-title">{{ object.name }}</h5>
-                <pre class="card-text">{{ object.description }}</pre>
-                  <b>price: </b> {{ object.price }} so'm
-                <div class="row">
-                    <div class="col-lg-6">
-                        <a href="#" class="btn btn-outline-primary w-100 mt-3">
-                            Update
-                        </a>
-                    </div>
-                      <div class="col-lg-6">
-                        <a href="#" class="btn btn-outline-danger w-100 mt-3">
-                            Delete
-                        </a>
-                    </div>
-                </div>
+        <div class="row">
+            <div class="col-lg-3 mb-4">
+          <div class="list-group">
+              {% for category in categories %}
+                  <li class="list-group-item list-group-item-action {% if category.id == active %}active{% endif %}">
+                      <a href="?category={{ category.id }}"
+                         class="link d-inline-block text-dark">
+                            {{ category.name }}
+                      </a>
+                      <a class="text-success btn bi bi-plus-square" href="{% url "cs-create" category.id %}"></a>
+                      <a class="text-primary btn bi bi-pencil-square" href="{% url "c-update" category.id %}"></a>
+                      <a class="text-danger btn bi bi-x-circle-fill" href="{% url "c-delete" category.id %}"></a>
+                  </li>
+
+
+              {% endfor %}
+                <a href="{% url 'c-create' %}"
+                   class="text-light list-group-item list-group-item-action
+                    bg-success d-inline-block text-center">
+                    <span>Create Category
+                        <b style="font-size: 20px">+</b>
+                    </span>
+                </a>
               </div>
+            <a href="{% url 's-create' %}" class="my-3 btn btn-success">
+                <b>+</b> Create Service
+            </a>
+            </div>
+            <div class="col-lg-9 mb-5">
+                <div class="row">
+                {% if queryset %}
+                    {% for object in queryset %}
+                        <div class="col-lg-4 col-md-6 mb-4">
+                            <div class="card h-100 w-100">
+                              <img src="{{ object.image.url }}" class="card-img-top" alt="...">
+                              <div class="card-body">
+                                <h5 class="card-title">{{ object.name }}</h5>
+                                <pre class="card-text">{{ object.description }}</pre>
+                                  <b>price: </b> {{ object.price }} so'm
+                                <div class="row">
+                                    <div class="col-6">
+                                        <a href="{% url 's-update' object.id %}" class="bi bi-pencil-square btn btn-outline-primary w-100 mt-3">
+                                        </a>
+                                    </div>
+                                      <div class="col-6">
+                                        <a href="{% url 's-delete' object.id %}" class="bi bi-x-circle-fill btn btn-outline-danger w-100 mt-3">
+                                        </a>
+                                    </div>
+                                </div>
+                              </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="mt-5 mx-5 w-100 alert alert-danger">
+                        <h3 class="text-center">
+                            Not found Services
+                        </h3>
+                    </div>
+                {% endif %}
+
+
+            </div>
+
             </div>
         </div>
-        {% endfor %}
-
-
-    </div>
     </div>
 {% endblock %}

@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+{% block title %}
+
+{% endblock %}
+{% block content %}
+<div class="container">
+    <div class="jumbotron">
+        <form method="post" enctype="multipart/form-data">
+            <h4>Update {{ name }}</h4>
+            {% csrf_token %}
+            {{ form | crispy }}
+            <div class="row">
+                <div class="col-sm-6 mb-3">
+                    <a class="w-100 btn btn-secondary text-light" href="{% url 'services' %}">cancel</a>
+                </div>
+                <div class="col-sm-6 mb-3">
+                    <button class="w-100 btn btn-primary">Submit</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
